@@ -473,6 +473,14 @@ int main(int argc, char** argv) {
     device->RemoveMenuItemForAction(Device::WIPE_CACHE);
   }
 
+  if (get_build_type() == "user" && 
+      android::base::GetBoolProperty("ro.boot.flash.locked", false)){
+      //If we have flashing locked there is no sense to allow user to flash something
+      //since in worst case it may lead to hard-brick, thus we should remove ability
+      //to use fastbootd which do not verify images.
+      device->RemoveMenuItemForAction(Device::ENTER_FASTBOOT);
+  }
+  
   if (android::base::GetBoolProperty("ro.build.ab_update", false)) {
     // There's not much point in formatting the active slot's system partition
     // because ROMs are flashed to the inactive slot. Removing the menu option

@@ -408,7 +408,8 @@ int main(int argc, char** argv) {
           reason = optarg;
         } else if (option == "fastboot" &&
                    (android::base::GetBoolProperty("ro.boot.dynamic_partitions", false) ||
-                    android::base::GetBoolProperty("ro.fastbootd.available", false))) {
+                    android::base::GetBoolProperty("ro.fastbootd.available", false)) &&
+                    !is_device_locked()) {
           fastboot = true;
         }
         break;

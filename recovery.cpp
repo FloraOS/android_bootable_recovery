@@ -172,6 +172,60 @@ static bool yes_no(Device* device, const char* question1, const char* question2)
   return (chosen_item == 1);
 }
 
+
+/*
+ * In this way I should been able to get whether device locked or unlocked
+ * But since a SafetyNet support is present on all upstream repositories
+ * for hotdogg  I now need either to find setprop's in all source code
+ * of kernel and LineageOS and check if they are setting verifiedbootstate
+ * or parse /proc/cmdline(fortunately I was able to cancel patches for SafetyNet
+ * in hotdogg kernel). The way of parsing cmdline dirvectly should also work
+ * on all devices with AVBv2(i.e. all devices which can be locked), but unfortunately
+ * such implementation is not as clean as one below
+static bool is_vbmeta_locked(){
+    std::string state = android::base::GetProperty("ro.boot.vbmeta.device_state", "locked");
+    return state == "locked";
+}
+*/
+
+static std::vector<std::string> split(const std::string& s, char delimiter)
+{
+   std::vector<std::string> tokens;
+   std::string token;
+   std::istringstream tokenStream(s);
+   while (std::getline(tokenStream, token, delimiter))
+   {
+      tokens.push_back(token);
+   }
+   return tokens;
+}
+
+static std::string get_bootloader_state(const std::string& cmdline, const std::string& _default){
+        std::vector<std::string> params = split(cmdline, ' ');
+        for(int i = 0; i < params.size(); ++i){
+                std::vector<std::string> kv = split(params[i], '=');
+                if(kv.size() < 2){
+                        continue;
+                }
+                if(kv[0] == "androidboot.verifiedbootstate"){
+                        return kv[1];
+                }
+        }
+        return _default;
+}
+
+bool is_device_locked(void){
+    std::string cmdline;
+    if(!android::base::ReadFileToString("/proc/cmdline", &cmdline)){
+        LOG(FATAL) << "Can not read /proc/cmdline\n";
+        return false;
+    }
+    //If we're failing to get verifiedbootstate this means that
+    //we are running on device w/o AVBv2 support and so our device
+    //is definetely unlocked
+    return get_bootloader_state(cmdline, "orange") != "orange";
+}
+
 bool ask_to_ab_reboot(Device* device) {
   device->GetUI()->SetProgressType(RecoveryUI::EMPTY);
   return yes_no(device, "To install additional packages, you need to reboot recovery first",

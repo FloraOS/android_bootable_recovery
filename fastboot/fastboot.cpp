@@ -29,6 +29,7 @@
 #include <bootloader_message/bootloader_message.h>
 
 #include "recovery_ui/ui.h"
+#include "recovery.h"
 
 static const std::vector<std::pair<std::string, Device::BuiltinAction>> kFastbootMenuActions{
   { "Reboot system now", Device::REBOOT_FROM_FASTBOOT },
@@ -37,7 +38,51 @@ static const std::vector<std::pair<std::string, Device::BuiltinAction>> kFastboo
   { "Power off", Device::SHUTDOWN_FROM_FASTBOOT },
 };
 
+void FailFastbootd(Device* device){
+  RecoveryUI* ui = device->GetUI();
+  ui->Print("fastbootd is not available.");
+  ui->Print("Hold power button to reboot the device.");
+}
+
+
 void FillDefaultFastbootLines(std::vector<std::string>& title_lines) {
+  std::string bootloader_version = android::base::GetProperty("ro.bootloader", "");
+  std::string baseband_version = android::base::GetProperty("ro.build.expect.baseband", "");
+  std::string hw_version = android::base::GetProperty(
+      "ro.boot.hardware.revision", android::base::GetProperty("ro.revision", ""));
+  title_lines.push_back("Product name - " + android::base::GetProperty("ro.product.device", ""));
+  if (!android::base::EqualsIgnoreCase(bootloader_version, "unknown")) {
+    title_lines.push_back("Bootloader version - " + bootloader_version);
+  }
+  if (!baseband_version.empty()) {
+    title_lines.push_back("Baseband version - " + baseband_version);
+  }
+  title_lines.push_back("Serial number - " + android::base::GetProperty("ro.serialno", ""));
+  title_lines.push_back(std::string("Secure boot - ") +
+                        ((android::base::GetProperty("ro.secure", "") == "1") ? "yes" : "no"));
+  if (!android::base::EqualsIgnoreCase(hw_version, "0")) {
+    title_lines.push_back("HW version - " + hw_version);
+  }
+}
+
+void FillWearableFastbootLines(std::vector<std::string>& title_lines) {
+  title_lines.push_back("Android Fastboot");
+  title_lines.push_back(android::base::GetProperty("ro.product.device", "") + " - " +
+                        android::base::GetProperty("ro.revision", ""));
+  title_lines.push_back(android::base::GetProperty("ro.bootloader", ""));
+
+  const size_t max_baseband_len = 24;
+  const std::string& baseband = android::base::GetProperty("ro.build.expect.baseband", "");
+  title_lines.push_back(baseband.length() > max_baseband_len
+                            ? baseband.substr(0, max_baseband_len - 3) + "..."
+                            : baseband);
+
+  title_lines.push_back("Serial #: " + android::base::GetProperty("ro.serialno", ""));
+}
+
+Device::BuiltinAction StartFastboot(Device* device, const std::vector<std::string>& /* args */) {
+  RecoveryUI* ui = device->GetUI();
+
   std::string bootloader_version = android::base::GetProperty("ro.bootloader", "");
   std::string baseband_version = android::base::GetProperty("ro.build.expect.baseband", "");
   std::string hw_version = android::base::GetProperty(
@@ -86,6 +131,10 @@ Device::BuiltinAction StartFastboot(Device* device, const std::vector<std::strin
   ui->ResetKeyInterruptStatus();
   ui->SetTitle(title_lines);
   ui->ShowText(true);
+  if(is_device_locked()){
+    FailFastbootd(device);
+    return Device::ENTER_RECOVERY;
+  }
   device->StartFastboot();
 
   // Reset to normal system boot so recovery won't cycle indefinitely.

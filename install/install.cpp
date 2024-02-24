@@ -621,9 +621,6 @@ static InstallResult TryUpdateBinary(Package* package, bool* wipe_cache,
   if (package_is_ab) {
     ab_package_installed = true;
     PerformPowerwashIfRequired(zip, device);
-    if (!ui->IsSideloadAutoReboot() && ask_to_ab_reboot(device)) {
-      reboot_to_recovery();
-    }
   }
 
   return INSTALL_SUCCESS;

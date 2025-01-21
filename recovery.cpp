@@ -906,15 +906,20 @@ Device::BuiltinAction start_recovery(Device* device, const std::vector<std::stri
   std::string ver_date = ver_date_match.str(1);  // Empty if no match.
 
   std::vector<std::string> title_lines = {
-    "Version: " + android::base::GetProperty("ro.lineage.build.version", "(unknown)"),
-    "Build: " + android::base::GetProperty("ro.bootimage.build.version.incremental", "<unknown>")
+    "Version: " + android::base::GetProperty("ro.lineage.build.version", "<unknown lineage build version>"),
+    "Build: " + android::base::GetProperty("ro.modversion", "<unknown modversion>")
   };
-  title_lines.push_back("Product name: " + android::base::GetProperty("ro.product.device", ""));
+  title_lines.push_back("Product name: " + android::base::GetProperty("ro.product.device", "???"));
   if (android::base::GetBoolProperty("ro.build.ab_update", false)) {
     std::string slot = android::base::GetProperty("ro.boot.slot_suffix", "");
     if (android::base::StartsWith(slot, "_")) slot.erase(0, 1);
     title_lines.push_back("Active slot: " + slot);
   }
+  if (android::base::GetBoolProperty("ro.boot.serialno", false)) {
+    title_lines.push_back("Serial no: " + android::base::GetProperty("ro.boot.serialno", "???"));
+  }
+  title_lines.push_back("Verified boot: " + android::base::GetProperty("ro.boot.verifiedbootstate", "unknown"));
+
   ui->SetTitle(title_lines);
 
   ui->ResetKeyInterruptStatus();
